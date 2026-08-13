@@ -192,7 +192,7 @@ Inglês abreviado, com dicionário de dados para legibilidade.
 |`dim_client`|`client_id`|Pendente|
 |`dim_service`|`service_id`|Pendente|
 |`dim_modality`|`modality_id`|Pendente|
-|`dim_provider`|`provider_id`|Pendente|
+|`dim_provider`|`provider_id`|Estrutura em fechamento (2026-08-12) — ver 5.7a|
 |`dim_channel`|`id_chnl_accept`|Pendente|
 |`dim_period`|`id_dt_open`, `id_dt_accept`, `id_dt_arrival`, `id_dt_conclusion`|Pendente|
 
@@ -356,6 +356,22 @@ Renovação = nova linha (novo `bk_contract`), nunca versão Type 2 da anterior.
 
 ---
 
+### 5.7a dim_provider — estrutura em fechamento (2026-08-12)
+
+Prestador credenciado (guincho, chaveiro, encanador, eletricista etc.). Grão: uma linha por prestador (PJ). Especialidade e preço resolvidos como **relação** (bridge), não atributo da dimensão — um mesmo prestador pode atender múltiplas categorias de serviço.
+
+**`dim_provider`:** `sk_provider`, `bk_provider` (CNPJ — premissa assumida "prestador sempre PJ", não confirmada), `fk_address` (Type 2, sede do prestador, reaproveita `dim_address`), `status_cd` (Type 2, mesmo padrão de `dim_contract.status_cd`), `fk_provider_status_reason` (Type 1, FK → nova mini-dimensão `dim_provider_status_reason`), `dt_start`/`dt_end`/`fl_current`.
+
+**`dim_provider_status_reason`:** catálogo próprio e independente de `dim_status_reason` (não reaproveitado via role-playing) — motivo de contrato e motivo de descredenciamento de prestador não têm sobreposição de significado nem de governança (times diferentes), mesmo teste já usado para rejeitar supertype/subtype em `dim_asset`.
+
+**`bridge_provider_service_type`** (N:N versionada, SCD Type 2): `fk_provider`, `fk_service_type`, `vl_price` (preço-padrão), vigência. Mesmo padrão de `dim_plan_coverage`.
+
+**`bridge_provider_service_region_price`** (exceção negociada, N:N versionada): `fk_provider`, `fk_service_type`, `fk_address` (região), `vl_price`, vigência. Resolve o risco de preço "ad-hoc" por atendimento (ex.: acionamentos repetidos fora da área numa enchente inflando custo sem controle) — acordo sempre **pré-negociado e versionado**, nunca decidido na hora. Valor efetivo na Gold: `COALESCE(bridge_provider_service_region_price.vl_price, bridge_provider_service_type.vl_price)`.
+
+**Pendências de negócio (2026-08-12):** (1) confirmar premissa "prestador sempre PJ"; (2) área de atuação/cobertura regional — não modelada agora, registrada a pergunta certa para o diretor (métrica real de gap de rede vs. regra operacional de despacho); (3) confirmar existência do cenário de preço negociado por região.
+
+**Débito técnico:** normalização de CEP/endereço do Excel de prestadores fica na Silver (data quality/master data), não gera dimensão de geografia nova — `dim_address` continua denormalizada (5.4); snowflaking (`dim_uf`/`dim_city`/`dim_cep` separadas) cogitado e descartado pelo mesmo motivo já usado para justificar a tabela física única de `dim_address`.
+
 ## 6. SCD — decisões por entidade
 
 ### Contratos e planos
@@ -387,11 +403,11 @@ Renovação = nova linha (novo `bk_contract`), nunca versão Type 2 da anterior.
 
 |Atributo|Tipo SCD|Motivo|
 |---|---|---|
-|Tabela de preços (serviço × região)|Type 2|Valores mudam ao longo do tempo|
-|Regiões de cobertura|Type 2|Prestador pode expandir/restringir área|
-|Especialidades|Type 2|Prestador adiciona/remove serviços|
-|Status (ativo/inativo/suspenso)|Type 2|Auditoria|
-|Telefone, e-mail, contato|Type 1|Sem valor analítico histórico|
+|Preço-padrão por prestador×serviço (`bridge_provider_service_type`)|Type 2 (bridge inteira)|N:N real; preço e credenciamento mudam sem alterar o cadastro do prestador — mesmo damage-first reasoning de `dim_plan_coverage`|
+|Preço negociado por região (`bridge_provider_service_region_price`)|Type 2 (bridge inteira)|Exceção pré-negociada, não decidida ad-hoc por atendimento (risco de custo inflado sem controle)|
+|Status (ativo/inativo/suspenso)|Type 2|Auditoria — mesmo padrão de `dim_contract.status_cd`|
+|Endereço de sede (`fk_address`)|Type 2|Mesmo padrão de `dim_client.fk_address`|
+|Área de atuação/cobertura regional|—|**Não modelada** — pendência de negócio (métrica real vs. regra de despacho)|
 
 ### Cliente
 
@@ -482,8 +498,9 @@ Discutido em detalhe ao fechar `dim_client`. Quando um atributo é Type 2, a dim
 | `dim_plan`                                                    | **Resolvido (estrutura)** — `bk_plan` BK real, `plan_desc` Type 1, SLA e mensalidade (`vl_monthly_fee`) como colunas Type 2. Confirmado com o diretor: PF fixo, PJ via `dim_contract.vl_monthly_fee_negotiated` |
 | `dim_authorized_contact`, `dim_status_reason` | **Resolvido** — bridge versionada (SCD Type 2) e mini-dimensão com `reason_cd`/`ds_status_reason_detail` formalizados. Ver 5.6 |
 | `dim_analyst`                                                | Estrutura completa — não iniciada                                                                                                                                        |
-| `dim_service`, `dim_modality`, `dim_provider`, `dim_channel` | Estrutura completa — não iniciadas                                                                                                                                       |
+| `dim_service`, `dim_modality`, `dim_channel`                | Estrutura completa — não iniciadas                                                                                                                                       |
 | `dim_asset`                                                  | **Resolvido (estrutura)** — duas tabelas físicas (`dim_asset_vehicle`, `dim_asset_property`), bridges versionadas pra vigência de cobertura. Ver 5.7. Elo com fato resolvido via `fk_asset_vehicle`/`fk_asset_property`. Pendências de negócio: BK do imóvel, impacto de metragem em precificação |
+| `dim_provider`                                               | **Resolvido (estrutura em fechamento)** — cadastro + `bridge_provider_service_type` + `bridge_provider_service_region_price`. Ver 5.7a. 2 pendências de negócio: premissa PJ, cobertura regional |
 | `dim_sector`                                                 | Estrutura completa — não iniciada                                                                                                                                        |
 | Diagrama ER                                                  | Representação visual do modelo completo                                                                                                                                  |
 | Dicionário de dados                                          | Mapeamento abreviação → descrição em português                                                                                                                           |

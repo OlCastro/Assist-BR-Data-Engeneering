@@ -87,7 +87,8 @@ Construir um projeto completo de engenharia de dados para portfólio, cobrindo d
 | Fato Financeiro — colunas | Estrutura detalhada da tabela | Pendente |
 | Elo fato_atendimento → dim_contract | `fk_contract` adicionado à fato, apontando para `sk_contract` vigente no momento do atendimento | Concluído |
 | Elo fato_atendimento → dim_asset | `fk_asset_vehicle`/`fk_asset_property` adicionados à fato, nullable por design de domínio, discriminados por `category_desc` | Concluído |
-| Demais dimensões | Analyst, Service, Modality, Provider, Period, Channel, Sector | Pendente |
+| dim_provider | Cadastro de prestador (PJ) + `bridge_provider_service_type` (preço-padrão) + `bridge_provider_service_region_price` (exceção negociada por região, versionada) + `dim_provider_status_reason` (mini-dimensão própria). 2 pendências de negócio: premissa PJ, área de atuação | Estrutura em fechamento (2026-08-12) |
+| Demais dimensões | Analyst, Service, Modality, Period, Channel, Sector | Pendente |
 | Diagrama visual do modelo | Representação ER/star schema | Primeira versão produzida (DBML) |
 
 ---
@@ -137,8 +138,8 @@ As análises abaixo orientaram a modelagem e devem ser suportadas pelo projeto:
 
 **Concluído:** levantamento de negócio (incluindo 4ª rodada de entrevista, 2026-07-19), arquitetura de referência, convenções técnicas, estrutura das três fatos e colunas da Fato Atendimento, `dim_address`, `dim_service_type` (estrutura), `dim_client`, **toda a árvore de `dim_contract`** (`dim_plan`, `dim_plan_coverage`, `dim_authorized_contact`, `dim_status_reason`, fechadas em 2026-07-19) e **`dim_asset`** (`dim_asset_vehicle`, `dim_asset_property` + bridges versionadas, fechada em estrutura em 2026-08-09). **As 3 pendências de negócio da árvore de contrato também foram resolvidas** via entrevista com o diretor: linhagem de renovação (sem vínculo na fonte → `fk_previous_contract` inferido), janela do `QTD_ANUAL` (aniversário do contrato) e política de mensalidade PF/PJ (`dim_plan.vl_monthly_fee` + `dim_contract.vl_monthly_fee_negotiated`).
 
-**Em andamento:** demais dimensões (`dim_analyst`, `dim_service`, `dim_modality`, `dim_provider`, `dim_channel`, `dim_sector`) e das fatos Interação e Financeiro.
+**Em andamento:** `dim_provider` (estrutura em fechamento, iniciada em 2026-08-12) e demais dimensões (`dim_analyst`, `dim_service`, `dim_modality`, `dim_channel`, `dim_sector`) e das fatos Interação e Financeiro.
 
-**Pendências de negócio em aberto (2026-08-09):** (1) identificador único do imóvel na fonte operacional (BK de `dim_asset_property`); (2) se metragem do imóvel influencia precificação/cobertura; (3) hipótese não confirmada de planos/coberturas diferenciados por ativo dentro de um mesmo contrato de frota PJ.
+**Pendências de negócio em aberto (2026-08-12):** (1) identificador único do imóvel na fonte operacional (BK de `dim_asset_property`); (2) se metragem do imóvel influencia precificação/cobertura; (3) hipótese não confirmada de planos/coberturas diferenciados por ativo dentro de um mesmo contrato de frota PJ; (4) premissa "prestador sempre PJ"; (5) área de atuação/cobertura regional do prestador (métrica real ou regra de despacho?); (6) existência do cenário de preço negociado por região para prestadores.
 
-**Próxima entrega prevista:** abertura das dimensões restantes (`dim_analyst`, `dim_service`, `dim_modality`, `dim_provider`, `dim_channel`, `dim_sector`) — `dim_asset` fechada em arquitetura, com pendências de negócio pra próxima rodada com o diretor. Diagrama visual será atualizado em conjunto conforme novas dimensões forem fechadas.
+**Próxima entrega prevista:** fechamento de `dim_provider` (pendências de negócio via entrevista com o diretor) e abertura das dimensões restantes (`dim_analyst`, `dim_service`, `dim_modality`, `dim_channel`, `dim_sector`). Diagrama visual será atualizado em conjunto conforme novas dimensões forem fechadas.

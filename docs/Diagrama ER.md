@@ -172,6 +172,52 @@ Table bridge_contract_asset_property {
   Note: '1:N versionada (SCD Type 2 aplicado à bridge), mesma estrutura de bridge_contract_asset_vehicle.'
 }
 
+Table dim_provider {
+  sk_provider int [pk]
+  bk_provider varchar [note: 'CNPJ — premissa assumida "prestador sempre PJ", não confirmada']
+  fk_address int [ref: > dim_address.sk_address, note: 'Sede/domicílio do prestador, Type 2']
+  status_cd varchar [note: 'Ativo / Inativo / Suspenso — Type 2']
+  fk_provider_status_reason int [ref: > dim_provider_status_reason.sk_provider_status_reason, note: 'Type 1']
+  dt_start date
+  dt_end date
+  fl_current boolean
+
+  Note: 'ESTRUTURA EM FECHAMENTO (2026-08-12). Especialidade e preço são relação (bridges), não atributo. 2 pendências de negócio: premissa PJ, área de atuação/cobertura regional (não modelada).'
+}
+
+Table dim_provider_status_reason {
+  sk_provider_status_reason int [pk]
+  reason_cd int
+  reason_desc varchar
+
+  Note: 'FECHADA. Catálogo próprio, independente de dim_status_reason — domínios de negócio sem sobreposição de significado/governança.'
+}
+
+Table bridge_provider_service_type {
+  sk_provider_service_type int [pk]
+  fk_provider int [ref: > dim_provider.sk_provider]
+  fk_service_type int [ref: > dim_service_type.sk_service_type]
+  vl_price decimal [note: 'Preço-padrão do prestador para a categoria de serviço']
+  dt_start date
+  dt_end date
+  fl_current boolean
+
+  Note: 'N:N versionada (SCD Type 2). Mesmo padrão de dim_plan_coverage.'
+}
+
+Table bridge_provider_service_region_price {
+  sk_provider_service_region_price int [pk]
+  fk_provider int [ref: > dim_provider.sk_provider]
+  fk_service_type int [ref: > dim_service_type.sk_service_type]
+  fk_address int [ref: > dim_address.sk_address, note: 'Região da exceção']
+  vl_price decimal [note: 'Preço negociado para a combinação específica']
+  dt_start date
+  dt_end date
+  fl_current boolean
+
+  Note: 'Exceção pré-negociada e versionada (nunca ad-hoc por atendimento). Valor efetivo na Gold: COALESCE(este.vl_price, bridge_provider_service_type.vl_price).'
+}
+
 Table dim_service_type {
   sk_service_type int [pk]
   bk_service_type varchar [note: 'PENDENTE de definição']
@@ -207,7 +253,7 @@ Table fact_attendance {
   service_id int
   service_type_id int [ref: > dim_service_type.sk_service_type]
   modality_id int
-  provider_id int
+  provider_id int [ref: > dim_provider.sk_provider]
   fk_address_origin int [ref: > dim_address.sk_address]
   fk_address_destination int [ref: > dim_address.sk_address]
   ds_address_origin varchar [note: 'degenerate dimension: rua+número']
